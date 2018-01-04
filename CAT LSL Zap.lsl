@@ -1,9 +1,11 @@
+// SHOCK COLLAR 116
+
 integer GI_N_Dialog = 8100;
 integer GI_N_Relay = 8200;
 integer GI_N_Speaker = 8300;
 integer GI_N_GoTo = 8400;
 integer GI_N_Titler = 8500;
-//integer GI_N_Interface = 8900;
+integer GI_N_Interface = 8900;
 integer GI_N_Zapper = 8800;
 integer GI_N_Leash = 8700;
 integer GN_N_CORE = 8600;
@@ -19,6 +21,147 @@ integer GI_ZapTotal;
 
 integer GI_ZapRecover;
 
+
+
+integer GI_Debug = FALSE;
+debug( string msg ) {
+    if( GI_Debug ) {
+        string output = llGetScriptName() +": "+ msg;
+        llOwnerSay( output );
+        llWhisper( -9999, output );
+    }
+}
+
+
+/*
+*   menu reigster stuff
+*/
+string GS_Pri_Menu = "Zap Collar";
+string GS_Pub_Menu = "Punish";
+
+list GL_Menu_Pri = [ 
+        "Debug"
+    ];
+
+list GL_Menu_Pub = [
+        "Zap", 
+        "Stun"
+    ];
+
+
+integer GI_N_MenuRef = 5000;
+
+integer GI_N_PriMenu;
+integer GI_N_PubMenu;
+
+
+register() {
+    debug( "Register" );
+    llMessageLinked( LINK_SET, GI_N_MenuRef, GS_Pri_Menu, "addPriMenu" );
+    llMessageLinked( LINK_SET, GI_N_MenuRef, GS_Pub_Menu, "addPubMenu" );
+}
+
+procPubCmd( key id, list tokens ) {
+    debug( "procPubCmd: "+ llDumpList2String( tokens, " | " ) );
+    string cmd = llToLower( llList2String( tokens, 0 ) );
+    if( cmd == "zap" ) {
+        zapStart( 8 );
+        llSay( 0, "ZAP!\n"+ catGetName( llGetOwner() ) +" zapped by "+ catGetName( id ) );
+    } else if( cmd == "stun" ) {
+        zapStart( 30 );
+        llWhisper( 0, "ZAP!\n"+ catGetName( llGetOwner() ) +" stunned by "+ catGetName( id ) );
+    } else {
+        debug( "Unknown Pub Command: "+ cmd );
+    }
+}
+
+procPriCmd( list tokens ) {
+    debug( "procPriCmd: "+ llDumpList2String( tokens, " | " ) );
+    string cmd = llToLower( llList2String( tokens, 0 ) );
+    if( cmd == "debug" ) {
+        GI_Debug = !GI_Debug;
+        llOwnerSay( llGetScriptName() +" Debug set: "+ (string)GI_Debug );
+    } else {
+        debug( "Unknown Pri Command: "+ cmd );
+    }
+}
+
+list genPubMenu( key id ) {
+    return GL_Menu_Pub + ["-"];
+}
+
+list genPriMenu( ) {
+    return GL_Menu_Pri + ["-", "-"];
+}
+
+menuCommon( integer src, string msg, key cmd ) {
+    debug( "Menu: "+ msg +" : "+ (string)cmd );
+    if( cmd == "getMenu" ) {
+        register();
+    } else if( cmd == "setPubChan" ) {
+        list tokens = llParseStringKeepNulls( msg, ["|"], [] );
+        if( llList2String( tokens, 0 ) == GS_Pub_Menu ) {
+            GI_N_PubMenu = (integer)llList2String( tokens, 1 );
+            debug( "SetPubChan: "+ (string)GI_N_PubMenu );
+        }
+    } else if( cmd == "setPriChan" ) {
+        list tokens = llParseStringKeepNulls( msg, ["|"], [] );
+        if( llList2String( tokens, 0 ) == GS_Pri_Menu ) {
+            GI_N_PriMenu = (integer)llList2String( tokens, 1 );
+            debug( "SetPriChan: "+ (string)GI_N_PriMenu );
+        }
+    }
+}
+
+menuPriInput( integer src, string msg, key cmd ) {
+    debug( "Pri Cmd: "+ (string)src +" : "+ msg +" : "+ (string)cmd );
+    if( cmd == "selectMenu" ) {
+        list tokens = llParseStringKeepNulls( msg, ["|"], [] );
+        if( llList2String( tokens, 0 ) == "menu" ) {
+            llMessageLinked( src, GI_N_MenuRef, "menu|"+ llList2String( tokens, 1 ) +"|"+ llDumpList2String( genPriMenu(), "|" ), "openMenu" );
+                
+        } else if( llList2String( tokens, 0 ) == "menuOption" ){
+            procPriCmd( llList2List( tokens, 2, -1 ) );
+            llMessageLinked( src, GI_N_MenuRef, "menu|"+ llList2String( tokens, 1 ) +"|"+ llDumpList2String( genPriMenu(), "|" ), "openMenu" );
+        }
+    } else {
+        debug( "Unknown Pri Action: "+ msg +" : "+ (string)cmd );
+    }
+}
+
+menuPubInput( integer src, string msg, key cmd ) {
+    debug( "Pub Cmd: "+ (string)src +" : "+ msg +" : "+ (string)cmd );
+    if( cmd == "selectMenu" ) {
+        list tokens = llParseStringKeepNulls( msg, ["|"], [] );
+        if( llList2String( tokens, 0 ) == "menu" ) {
+            llMessageLinked( src, GI_N_MenuRef, "menu|"+ llList2String( tokens, 1 ) +"|"+ llDumpList2String( genPubMenu( llList2Key( tokens, 1 ) ), "|" ), "openMenu" );
+                
+        } else if( llList2String( tokens, 0 ) == "menuOption" ){
+            procPubCmd( llList2Key( tokens, 1 ), llList2List( tokens, 2, -1 ) );
+            llMessageLinked( src, GI_N_MenuRef, "menu|"+ llList2String( tokens, 1 ) +"|"+ llDumpList2String( genPubMenu( llList2Key( tokens, 1 ) ), "|" ), "openMenu" );
+        }
+    } else {
+        debug( "Unknown Pub Action: "+ msg +" : "+ (string)cmd );
+    }
+}
+
+/*
+*   END OF MENU REGISTER STUFF
+*/
+
+
+string catGetName( key id ) {
+    string name = llGetDisplayName( id );
+    if( name != "" ) {
+        return name;
+    } else if( (name = llKey2Name( id )) != "" ) {
+        if( llGetSubString( name, -9, -1 ) == " Resident" ) {
+            return llGetSubString( name, 0, -10 );
+        }
+        return name;
+    }
+    return "Unknown";
+}
 
 
 zapStart( integer count ) {
@@ -113,19 +256,13 @@ setup( key id ) {
 }
 
 
-integer GI_Debug = FALSE;
-debug( string msg ) {
-    if( GI_Debug ) {
-        string output = llGetScriptName() +": "+ msg;
-        llOwnerSay( output );
-        llWhisper( -9999, output );
-    }
-}
+
 
 
 default {
     state_entry() {
         setup( llGetOwner() );
+        register();
     }
     
     attach( key id ) {
@@ -141,6 +278,12 @@ default {
             } else if( id == "debug" ) {
                 GI_Debug = (integer)msg;
             }
+        } else if( num == 5000 ) {
+            menuCommon( src, msg, id );
+        } else if( num == GI_N_PriMenu ) {
+            menuPriInput( src, msg, id );
+        } else if( num == GI_N_PubMenu ) {
+            menuPubInput( src, msg, id );
         }
     }
     
