@@ -1,3 +1,6 @@
+// RLV CHATTER   116
+
+
 integer GI_N_Dialog = 8100;
 integer GI_N_Relay = 8200;
 integer GI_N_Speaker = 8300;
@@ -13,13 +16,101 @@ integer GN_N_HData = 8600;
 string GS_Title = "Unknown";
 integer g_iVolume = 102;
 
-integer g_iChan_A = 55;
+integer g_iChan_A = 5;
 integer g_iListen_A;
 
 integer GI_ChatPrim = 0;
 
-integer GI_Mood = FALSE;
+integer GI_Mood = TRUE; // TEMP
 integer GI_Enabled = TRUE;
+
+
+
+
+/*
+*   menu reigster stuff
+*/
+string GS_Pri_Menu = "Chatter";
+
+list GL_Menu_Pri = [ 
+        "Debug", "Set Alias"
+    ];
+
+
+integer GI_N_MenuRef = 5000;
+
+integer GI_N_PriMenu;
+
+
+register() {
+    debug( "Register" );
+    llMessageLinked( LINK_SET, GI_N_MenuRef, GS_Pri_Menu, "addPriMenu" );
+}
+
+procPriCmd( list tokens ) {
+    debug( "procPriCmd: "+ llDumpList2String( tokens, " | " ) );
+    string cmd = llToLower( llList2String( tokens, 0 ) );
+    if( cmd == "debug" ) {
+        GI_Debug = !GI_Debug;
+        llOwnerSay( llGetScriptName() +" Debug set: "+ (string)GI_Debug );
+    } else if( cmd == "chatter on" ) {
+        GI_Enabled = TRUE;
+        enable( );
+    } else if( cmd == "chatter off" ) {
+        GI_Enabled = FALSE;
+        enable( );
+    } else {
+        debug( "Unknown Pri Command: "+ cmd );
+    }
+}
+
+list genPriMenu( ) {
+    string on = "Chatter Off";
+    if( !GI_Enabled ) {
+        on = "Chatter On";
+    }
+    return llList2List( GL_Menu_Pri, 0, 0 ) +[on]+ llList2List( GL_Menu_Pri, 1, 1 );
+}
+
+menuCommon( integer src, string msg, key cmd ) {
+    debug( "Menu: "+ msg +" : "+ (string)cmd );
+    if( cmd == "getMenu" ) {
+        register();
+    /*} else if( cmd == "setPubChan" ) {
+        list tokens = llParseStringKeepNulls( msg, ["|"], [] );
+        if( llList2String( tokens, 0 ) == GS_Pub_Menu ) {
+            GI_N_PubMenu = (integer)llList2String( tokens, 1 );
+            debug( "SetPubChan: "+ (string)GI_N_PubMenu );
+        }
+    */
+    } else if( cmd == "setPriChan" ) {
+        list tokens = llParseStringKeepNulls( msg, ["|"], [] );
+        if( llList2String( tokens, 0 ) == GS_Pri_Menu ) {
+            GI_N_PriMenu = (integer)llList2String( tokens, 1 );
+            debug( "SetPriChan: "+ (string)GI_N_PriMenu );
+        }
+    }
+}
+
+menuPriInput( integer src, string msg, key cmd ) {
+    debug( "Pri Cmd: "+ (string)src +" : "+ msg +" : "+ (string)cmd );
+    if( cmd == "selectMenu" ) {
+        list tokens = llParseStringKeepNulls( msg, ["|"], [] );
+        if( llList2String( tokens, 0 ) == "menu" ) {
+            llMessageLinked( src, GI_N_MenuRef, "menu|"+ llList2String( tokens, 1 ) +"|"+ llDumpList2String( genPriMenu(), "|" ), "openMenu" );
+                
+        } else if( llList2String( tokens, 0 ) == "menuOption" ){
+            procPriCmd( llList2List( tokens, 2, -1 ) );
+            llMessageLinked( src, GI_N_MenuRef, "menu|"+ llList2String( tokens, 1 ) +"|"+ llDumpList2String( genPriMenu(), "|" ), "openMenu" );
+        }
+    } else {
+        debug( "Unknown Pri Action: "+ msg +" : "+ (string)cmd );
+    }
+}
+
+/*
+*   END OF MENU REGISTER STUFF
+*/
 
 
 
@@ -72,7 +163,7 @@ debug( string msg ) {
     if( GI_Debug ) {
         string output = llGetScriptName() +": "+ msg;
         llOwnerSay( output );
-        llWhisper( -9999, output );
+        llWhisper( -9966, output );
     }
 }
 
@@ -114,26 +205,36 @@ default {
                 msg == "";
                 string token = llList2String( data, 0 );
                 if( token == "cset_title" ) {
+                    llOwnerSay( "!!!!Old "+ token );
                     GS_Title = llList2String( data, 1 );
                 } else if ( token == "reset" ) {
+                    llOwnerSay( "!!!!Old "+ token );
                     debug( "Resetting Chatter" );
                     setup( id );
                 } else if( token == "debug" ) {
+                    llOwnerSay( "!!!!Old "+ token );
                     GI_Debug = (integer)llList2String( data, 1 );
                 } else if( token == "enable" ) {
+                    llOwnerSay( "!!!!Old "+ token );
                     GI_Enabled = TRUE; // GI_Mood
                     enable( );
                 } else if( token == "disable" ) {
+                    llOwnerSay( "!!!!Old "+ token );
                     GI_Enabled = FALSE; // GI_Mood
                     enable( );
                 }
             }
+        } else if( num == 5000 ) {
+            menuCommon( src, msg, id );
+        } else if( num == GI_N_PriMenu ) {
+            menuPriInput( src, msg, id );
         }
         
     }
     
     state_entry() {
         setup( llGetOwner() );
+        register();
     }
     
     listen( integer chan, string name, key id, string msg ) {

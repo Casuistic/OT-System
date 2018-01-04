@@ -1,3 +1,4 @@
+//  CORE 116
 integer GI_N_Dialog  = 8100;
 integer GI_N_Relay   = 8200;
 integer GI_N_Speaker = 8300;
@@ -15,7 +16,7 @@ integer GI_Debug = FALSE;
     Collar Core Stuff
 */
 string GS_CollarName = "Tether Collar";
-string GS_Version = "0.01.15";
+string GS_Version = "0.01.16";
 // end of collar core stuff
 
 key GK_GroupID = "bba4ab91-691d-a362-3245-b6a1469142fb"; // omega group
@@ -92,21 +93,10 @@ list GL_Ranktitles = [
     21, "Lieutenant",
     22, "Captain|X|Agent",
     23, "Major|X|Agent",
-    //30, "Entity|X|Agent",
     31, "Agent"
 ];
 //  END OF FIXED VALUES
 
-/*
-list GL_Insults = [
-    "Fool", "Moron", "Nitwit", "Stupid", 
-    /*"Twit", "Blockhead", "Bonehead", "cretin", 
-    "Dimwit", "Dunce", "Ignoramus", "Muttonhead",
-    "Ninny", "Pinhead", "Simpleton", "Special",
-    "Idiot", "Clod", "Dolt", "Imbecile",
-    "Numskill", "Oaf", "Sap", "Halfwit"
-];
-*/
 
 
 /*
@@ -123,14 +113,14 @@ debug( string msg ) {
 
 //  Perform Default Setup
 setup() {
-    debug( "setup" );
+    //debug( "setup" );
     killAllListens();
     setIC( FALSE );
 }
 
 // REZED ON GROUND
 clear() {
-    debug( "clear" );
+    //debug( "clear" );
     llSetLinkPrimitiveParamsFast( LINK_ROOT, [
                 PRIM_NAME, "OT Collar "+ GS_Version
             ] );
@@ -139,7 +129,7 @@ clear() {
 
 // ATTACHED
 init() {
-    debug( "init" );
+    //debug( "init" );
     llSetLinkPrimitiveParamsFast( LINK_ROOT, [
                 PRIM_NAME, GS_CollarName
             ] );
@@ -149,7 +139,7 @@ init() {
 
 // reset all scripts
 resetAll() {
-    debug( "resetAll" );
+    //debug( "resetAll" );
     integer count = llGetInventoryNumber( INVENTORY_SCRIPT );
     string me = llGetScriptName();
     while( count-- ) {
@@ -167,7 +157,7 @@ resetAll() {
 
 
 string getRankTitle( integer rank, string flag ) {
-    debug( "GetRank: "+ (string)rank +" : "+ flag );
+    //debug( "GetRank: "+ (string)rank +" : "+ flag );
     string o_rank = "";
     integer index = llListFindList( GL_Ranktitles, [rank] );
     if( index != -1 ) {
@@ -179,7 +169,7 @@ string getRankTitle( integer rank, string flag ) {
             o_rank = llList2String( temp, 0 );
         }
     }
-    debug( "GotRank: "+ o_rank );
+    //debug( "GotRank: "+ o_rank );
     return o_rank;
 }
 
@@ -200,7 +190,7 @@ string getRole( string flag ) {
 
 
 integer getRank( key id ) {
-    debug( "getRank: "+ (string)id );
+    //debug( "getRank: "+ (string)id );
     list data = llGetAttachedList( id );
     integer count = llGetListLength( data );
     while( count-- ) {
@@ -208,17 +198,17 @@ integer getRank( key id ) {
         list peram = llGetObjectDetails( pid, [OBJECT_NAME, OBJECT_DESC] );
         if( llList2String( peram, 0 ) == GS_CollarName ) {
             integer rank = llList2Integer( llCSV2List( llList2String( peram, 1 ) ), 4 );
-            debug( "Test Rand: "+ (string)rank +" "+ (string)id );
+            //debug( "Test Rand: "+ (string)rank +" "+ (string)id );
             return rank;
         }
     }
-    debug( "Test Rand: 0 "+ (string)id );
+    //debug( "Test Rand: 0 "+ (string)id );
     return 0;
 }
 
 
 vector getFlagColour( string flag ) {
-    debug( "getFlagColour: "+ flag );
+    //debug( "getFlagColour: "+ flag );
     vector col = <0.5,0.5,0.5>;
     integer index = llListFindList( GL_RoleCols, [flag] );
     if( index != -1 ) {
@@ -234,13 +224,13 @@ vector getFlagColour( string flag ) {
 
 //  Generate String Verificastion Hash
 string genHash( string fa, string fb, string ff, string fr, key id ) {
-    debug( "genHash" );
+    //debug( "genHash" );
     return llGetSubString( llMD5String( fa +":"+ fb +":"+ ff +":"+ fr, user2Chan( id, 100, 100 ) ), 0, 12 );
 }
 
 //  Generate True Format Desc
 string GenDesc( string fa, string fb, string ff, string fr, key id ) {
-    debug( "genDesc" );
+    //debug( "genDesc" );
     string desc = GS_Version +","+ fa +","+ fb +","+ ff +","+ fr +","+ genHash( fa, fb, ff, fr, id );
     llSetLinkPrimitiveParamsFast( LINK_THIS, [ 
             PRIM_DESC, desc
@@ -254,7 +244,7 @@ string GenDesc( string fa, string fb, string ff, string fr, key id ) {
 
 // UPDATE TITLER
 updateTitler() {
-    debug( "updateTitler" );
+    //debug( "updateTitler" );
     string id = "Titler";
     llMessageLinked( LINK_SET, GI_N_Titler, "setCrime|"+ GS_Crime, id );
     llMessageLinked( LINK_SET, GI_N_Titler, "setName|"+ CS_Name, id );
@@ -271,7 +261,7 @@ titlerEnable( integer on ) {
 
 // UPDATE TALKER
 updateTalker() {
-    debug( "updateTalker" );
+    //debug( "updateTalker" );
     if( GS_FullRank == "Inmate" ) {
         //llMessageLinked( LINK_SET, GI_N_Speaker, "cset_title|"+ GS_FullRank +" "+CS_Name, "" );
         if( GS_ChatTitle != "" ) {
@@ -329,7 +319,7 @@ leashColour( vector col ) {
 
 // ZAP THE BASTARD
 applyZap( integer len ) {
-    debug( "applyZap: "+ (string)len );
+    //debug( "applyZap: "+ (string)len );
     GI_HoldActive = TRUE;
     llMessageLinked( LINK_SET, GI_N_Zapper, (string)len, "do_zap" );
 }
@@ -338,7 +328,7 @@ applyZap( integer len ) {
 
 // UPDATE APPEARANCE
 updateAppearance( integer active ) {
-    debug( "updateAppearance: "+ (string)active );
+    //debug( "updateAppearance: "+ (string)active );
     float mod = 0.5;
     integer bright = FALSE;
     float glow = 0.0;
@@ -377,7 +367,7 @@ updateAppearance( integer active ) {
 
 // UPDATE IC/OOC STATE
 setIC( integer ic ) {
-    debug( "setIC: "+ (string)ic );
+    //debug( "setIC: "+ (string)ic );
     GI_IC = ic;
     string mood = (string)GI_IC;
     llMessageLinked( LINK_SET, GI_N_Titler, mood, "set_mood" );
@@ -398,25 +388,25 @@ getCharSheet( key id ) {
 
 // call to server script to look up character
 fetchChars() {
-    debug( "fetchChars" );
+    //debug( "fetchChars" );
     llMessageLinked( LINK_SET, GN_N_DB, "Load_Char", "http_act" );
 }
 
 //   insert character into local data
 //   user role as refferance
 insertChar( string msg ) {
-    debug( "insertChar "+ msg );
+    //debug( "insertChar "+ msg );
     ///Load_Char|1|2|1|P|1|Being%20a%20Stupid%20Fucking%20Cat|Eternity|Never
     list data = llParseString2List( msg, ["|"], [] );
     integer marker = (integer)llList2String( data, 1 );
     integer index = llListFindList( GL_Loaded_Chars_Data_A, [marker] );
     if( index == -1 ) {
-        debug( "Inserting: "+ (string)marker );
+        //debug( "Inserting: "+ (string)marker );
         GL_Loaded_Chars_Index += [ getRole( llList2String( data, 4 ) ), marker ];
         GL_Loaded_Chars_Data_A += [marker, llDumpList2String( llList2List( data,3,-1 ), "|" ) ];
         GL_Loaded_Chars_Data_B += [marker, "|||"];
     } else {
-        debug( "Updating: "+ (string)marker );
+        //debug( "Updating: "+ (string)marker );
         GL_Loaded_Chars_Data_A = llListReplaceList( GL_Loaded_Chars_Data_A, 
             [ llDumpList2String( llList2List( data,3,-1 ), "|" )
                 ], index+1, index+1 );
@@ -432,7 +422,7 @@ insertChar( string msg ) {
 
 // load the currently active character
 loadChar( integer marker ) {
-    debug( "loadChar "+ (string)marker );
+    //debug( "loadChar "+ (string)marker );
 
     GI_ActiveChar = marker;
     
@@ -488,7 +478,7 @@ loadChar( integer marker ) {
 
 // load suplamentory data
 loadCharLocalData( integer marker ) {
-    debug( "loadCharLocalData: "+ (string)marker );
+    //debug( "loadCharLocalData: "+ (string)marker );
     integer index = 1 + llListFindList( GL_Loaded_Chars_Data_A, [marker] );
     
     if( index != 0 && index < llGetListLength( GL_Loaded_Chars_Data_B ) ) {
@@ -510,7 +500,7 @@ loadCharLocalData( integer marker ) {
 
 // save current active character custom data
 updateLocalData() {
-    debug( "updateLocalData" );
+    //debug( "updateLocalData" );
     string name = GS_ChatTitle;
     if( GS_FullRank == "Inmate" ) {
         name = "";
@@ -520,7 +510,7 @@ updateLocalData() {
 
 // save custom data
 saveCharLocalData( integer marker , string name, string scent, string injury, string status ) {
-    debug( "updateLocalCharData: "+ (string)marker +" : "+ name +" : "+ scent +" : "+ injury +" : "+ status );
+    //debug( "updateLocalCharData: "+ (string)marker +" : "+ name +" : "+ scent +" : "+ injury +" : "+ status );
     integer index = llListFindList( GL_Loaded_Chars_Data_B, [marker] );
     string data = name +"|"+ scent +"|"+ injury +"|"+ status;
     if( index == -1 ) {
@@ -543,7 +533,7 @@ string getICorOOC() {
 
 // open a dialog menu
 openMenu( string data, key id ) {
-    debug( "openMenu" );
+    //debug( "openMenu" );
     
     if( !GI_IC && llGetOwner() != llGetOwnerKey( id ) ) {
         return;
@@ -613,7 +603,7 @@ openMenu( string data, key id ) {
         buttons = ["Debug On", "Debug Off", "Back"];
         info = "Debug Options";
     } else {
-        debug( "Else: "+ data );
+        //debug( "Else: "+ data );
         buttons = ["Character", "Debug", "Back" ];
         info = "Oups?";
     }
@@ -671,8 +661,6 @@ list GenCharMenu() {
 procCommand( string cmd, key id ) {
     key user = llGetOwnerKey( id );
     string menu = "Main";
-    
-    //integer rank = getRank( id );
     
     if( cmd == "-" ) {
         return;
@@ -735,7 +723,7 @@ procCommand( string cmd, key id ) {
 
 // owner only commands
 string procOwnerCommand( string cmd, key id ) {
-    debug( "procOwnerCommand: "+ cmd +" : "+ (string)id );
+    //debug( "procOwnerCommand: "+ cmd +" : "+ (string)id );
     string output = "";
     if( llGetOwner() == llGetOwnerKey( id ) ) {
         integer index = llListFindList( GL_Loaded_Chars_Index, [ cmd ] );
@@ -850,7 +838,7 @@ procCustomData( string act, string data ) {
 
 // setup listens
 integer listenSetup( key id ) {
-    debug( "listenSetup" );
+    //debug( "listenSetup" );
     integer chan;// = 1000 + (integer)llFrand( 1000 );//user2Chan( id, GI_ChanMin, GI_ChanRng );
     integer index = llListFindList( GL_ActiveCUser, [id] );
     if( index == -1 ) {
@@ -859,11 +847,11 @@ integer listenSetup( key id ) {
         GL_ActiveChans += llListen( chan, "", id, "" );
         GL_ActiveCLAct += llGetUnixTime();
         GL_ActiveCLEar += chan;
-        debug( "Listening for: "+ (string)chan +" "+ (string)id );
+        //debug( "Listening for: "+ (string)chan +" "+ (string)id );
     } else {
         llListReplaceList( GL_ActiveCLAct, [llGetUnixTime()], index, index );
         chan = llList2Integer( GL_ActiveCLEar, index );
-        debug( "Held for: "+ (string)chan +" "+ (string)id );
+        //debug( "Held for: "+ (string)chan +" "+ (string)id );
     }
     llSetTimerEvent( 60 );
     return chan; 
@@ -871,7 +859,7 @@ integer listenSetup( key id ) {
 
 // Kill all the listens
 killAllListens() {
-    debug( "killAllListens" );
+    //debug( "killAllListens" );
     integer i;
     integer num = llGetListLength( GL_ActiveChans );
     for( i=0; i<num; i++ ) {
@@ -885,7 +873,7 @@ killAllListens() {
 
 // setup data listen
 integer openDataListen() {
-    debug( "openDataListen" );
+    //debug( "openDataListen" );
     llListenRemove( GI_CD_Listen );
     integer chan = 2000 + (integer)llFrand( 1000 );//user2Chan( id, GI_ChanMin, GI_ChanRng );
     GI_CD_Listen = llListen( chan, "", llGetOwner(), "" );
@@ -894,7 +882,7 @@ integer openDataListen() {
 
 //  Generate an int based on a UUID
 integer user2Chan(key id, integer min, integer rng ) {
-    debug( "user2Chan: "+ (string)id +" : "+ (string)min +" : "+ (string)rng );
+    //debug( "user2Chan: "+ (string)id +" : "+ (string)min +" : "+ (string)rng );
     integer viMult = 1;
     if( min < 0 ) { viMult = -1; }
     return ( min + (viMult * (((integer)("0x"+(string)id) & 0x7FFFFFFF) % rng)));
@@ -906,7 +894,7 @@ integer user2Chan(key id, integer min, integer rng ) {
 */
 default {
     state_entry() {
-        debug( "state_entry" );
+        //debug( "state_entry" );
         llSetText( "", <1,1,1>, 1.0 );
         //llScriptProfiler(PROFILE_SCRIPT_MEMORY);
         //llSetTimerEvent( 5 );
@@ -919,7 +907,7 @@ default {
     }
     
     on_rez( integer peram ) {
-        debug( "on_rez" );
+        //debug( "on_rez" );
         if( !llGetAttached() ) {
             setup();
             clear(); // set default name for on ground rez
@@ -927,7 +915,7 @@ default {
     }
     
     attach( key id ) {
-        debug( "attach" );
+        //debug( "attach" );
         if( id ) {
             setup();
             init();
@@ -935,9 +923,9 @@ default {
     }
     
     listen( integer chan, string name, key id, string msg ) {
-        debug( "Listen: "+ (string)chan +" "+ name +" "+ msg );
+        //debug( "Listen: "+ (string)chan +" "+ name +" "+ msg );
         if( chan < 1000 ) { // huh?
-            debug( "Low Chan Error?" );
+            //debug( "Low Chan Error?" );
         } else if( chan < 2000 ) { // command data
             procCommand( msg, id );
         } else if( chan < 3000 ) { // custom data
@@ -955,7 +943,7 @@ default {
     }
     
     touch_start( integer num ) {
-        debug( "tough_start: "+ llDetectedName( 0 ) );
+        //debug( "tough_start: "+ llDetectedName( 0 ) );
         integer i;
         for( i=0; i < num; ++i ) {
             openMenu( "Main", llDetectedKey( 0 ) );
@@ -963,7 +951,7 @@ default {
     }
     
     link_message( integer src, integer num, string msg, key id ) {
-        debug( "link_message: "+ (string)num +" : "+ msg +" : "+ (string)id );
+        //debug( "link_message: "+ (string)num +" : "+ msg +" : "+ (string)id );
         if( num == 100 || num == GN_N_CORE ) {
             list data = llParseString2List( msg, ["|"], [] );
             //msg = "";
@@ -993,10 +981,10 @@ default {
     
     changed( integer change ) {
         if( change & CHANGED_INVENTORY ) {
-            debug( "changed Inv" );
+            //debug( "changed Inv" );
             state reset;
         } else if( change & CHANGED_OWNER ) {
-            debug( "changed Own" );
+            //debug( "changed Own" );
             state reset;
         }
     }
@@ -1005,24 +993,30 @@ default {
 
 //  RESET SEQUENCE
 state reset {
+    on_rez( integer peram ) {
+        resetAll();
+        state default;
+    }
+
     state_entry() {
-        debug( "reset: State Entry" );
+        //debug( "reset: State Entry" );
         llSetTimerEvent( 5.0 );
     }
     
     touch_start( integer num ) {
-        debug( "reset: Touch Start" );
+        //debug( "reset: Touch Start" );
         llRegionSayTo( llDetectedKey(0), 0, "Rebooting" );
     }
     
     timer() {
-        debug( "reset: Timer" );
+        //debug( "reset: Timer" );
         llSetTimerEvent(0);
         resetAll();
+        state default;
     }
     
     changed( integer change ) {
-        debug( "reset: Changed" );
+        //debug( "reset: Changed" );
         if( change & CHANGED_INVENTORY ) {
             llSetTimerEvent(5);
         }
