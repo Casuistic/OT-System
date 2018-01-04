@@ -1,4 +1,5 @@
-//  CORE 116
+// CORE 201
+
 integer GI_N_Dialog  = 8100;
 integer GI_N_Relay   = 8200;
 integer GI_N_Speaker = 8300;
@@ -12,11 +13,15 @@ integer GN_N_DB      = 8950;
 
 integer GI_Debug = FALSE;
 
+
+
+
+
 /*
     Collar Core Stuff
 */
 string GS_CollarName = "Tether Collar";
-string GS_Version = "0.01.16";
+string GS_Version = "0.02.01";
 // end of collar core stuff
 
 key GK_GroupID = "bba4ab91-691d-a362-3245-b6a1469142fb"; // omega group
@@ -47,28 +52,11 @@ string GS_Crime = "Unset";
 vector GV_RColour = <0.5,0.5,0.5>;
 // END OF ACTIVE CHAR DATA
 
-
 integer GI_ActiveChar = 0; // marker of active character found in chars index
 
 list GL_Loaded_Chars_Index = []; // indexing list
 list GL_Loaded_Chars_Data_A = []; // DB char data
 list GL_Loaded_Chars_Data_B = []; // local only char data
-
-integer GI_ChanMin = 500000; // channel gen base
-integer GI_ChanRng = 100000; // channel gen range
-
-integer GI_CD_Listen; // custom data listen
-
-// open listen data
-list GL_ActiveCUser;
-list GL_ActiveChans;
-list GL_ActiveCLAct;
-list GL_ActiveCLEar;
-// END OF CHAN GEN
-
-integer GI_HoldActive = FALSE; // holding channel open
-
-string GS_Action = ""; // custom data entry action holder
 
 integer GI_Chan_Server = 9; // noteserver channel
 
@@ -84,19 +72,23 @@ list GL_RoleCols = [
 
 list GL_Ranktitles = [
     0, "Non-Entity",
-    1, "Visitor|P|Inmate",
+    1, "Visitor|P|Prisoner",
     3, "Visitor|P|Trustee",
     10, "Entity|G|Guard|E|Mechanic|M|Medic|U|Unit|H|Hunter|X|Agent",
     11, "Sergeant|X|Agent",
     15, "Staff Sergeant|X|Agent",
     20, "2nd Lieutenant|X|Agent",
-    21, "Lieutenant",
+    21, "Lieutenant|X|Agent",
     22, "Captain|X|Agent",
     23, "Major|X|Agent",
     31, "Agent"
 ];
 //  END OF FIXED VALUES
 
+integer GI_HoldActive = FALSE; // holding active state
+
+integer GI_ChanMin = 500000; // channel gen base
+integer GI_ChanRng = 100000; // channel gen range
 
 
 /*
@@ -108,13 +100,153 @@ debug( string msg ) {
         string output = llGetScriptName() +": "+ msg;
         llOwnerSay( output );
         llWhisper( -9966, output );
+        integer per = (integer)(((float)llGetSPMaxMemory() / (float)llGetMemoryLimit()) * 100);
+        integer alt = (integer)(((float)llGetSPMaxMemory() / (float)llGetMemoryLimit()) * 100);
+        llSetText( llGetScriptName() +" "+ (string)per +"% Mem Usage", <1,1,1>, 1.0 );
     }
 }
+
+
+
+
+/*
+*   menu reigster stuff
+*/
+string GS_Pri_Menu = "Setup";
+string GS_Pub_Menu = "Character";
+
+list GL_Menu_Pri = [ 
+        "Debug", "-", "Role"
+    ];
+
+list GL_Menu_Pub = ["-", "Dummy!", "-"];
+
+
+integer GI_N_MenuRef = 5000;
+
+integer GI_N_PriMenu;
+integer GI_N_PubMenu;
+
+
+
+
+register() {
+    //debug( "Register" );
+    llMessageLinked( LINK_SET, GI_N_MenuRef, GS_Pri_Menu, "addPriMenu" );
+    llMessageLinked( LINK_SET, GI_N_MenuRef, GS_Pub_Menu, "addPubMenu" );
+}
+
+
+
+procPubCmd( key id, list tokens ) {
+    //debug( "procPubCmd: "+ llDumpList2String( tokens, " | " ) );
+    string cmd = llToLower( llList2String( tokens, 0 ) );
+    if( cmd == "Derp" ) {
+        // do stuff
+    } else {
+        debug( "Unknown Pub Command: "+ cmd );
+    }
+}
+
+
+integer procPriCmd( key id, list tokens ) {
+    //debug( "procPriCmd: "+ llDumpList2String( tokens, " | " ) );
+    string cmd = llToLower( llList2String( tokens, 0 ) );
+    if( cmd == "debug" ) {
+        GI_Debug = !GI_Debug;
+        llOwnerSay( llGetScriptName() +" Debug set: "+ (string)GI_Debug );
+    } else if( cmd == "role" ) {
+        llMessageLinked( LINK_SET, GI_N_MenuRef, "menu|"+ (string)id +"|"+ llDumpList2String( GenCharMenu(), "|" ), "openMenu" );
+        return FALSE;
+    } else if( cmd == "refresh" ) {
+        fetchChars();
+        //llMessageLinked( LINK_SET, GI_N_MenuRef, "menu|"+ (string)id +"|"+ llDumpList2String( ["-", "-", "Role"], "|" ), "openMenu" );
+        //return FALSE;
+    } else {
+        cmd = llList2String( tokens, 0 );
+        integer index = llListFindList( GL_Loaded_Chars_Index, [ cmd ] );
+        if( index != -1 ) {
+            loadChar( index+1 );
+        } else {
+            debug( "Unknown Pri Command: "+ cmd );
+        }
+    }
+    return TRUE;
+}
+
+
+list genPubMenu( key id ) {
+    return GL_Menu_Pub;
+}
+
+list genPriMenu( ) {
+    return GL_Menu_Pri;
+}
+
+menuCommon( integer src, string msg, key cmd ) {
+    //debug( "Menu: "+ msg +" : "+ (string)cmd );
+    if( cmd == "getMenu" ) {
+        register();
+    } else if( cmd == "setPubChan" ) {
+        list tokens = llParseStringKeepNulls( msg, ["|"], [] );
+        if( llList2String( tokens, 0 ) == GS_Pub_Menu ) {
+            GI_N_PubMenu = (integer)llList2String( tokens, 1 );
+            //debug( "SetPubChan: "+ (string)GI_N_PubMenu );
+        }
+    } else if( cmd == "setPriChan" ) {
+        list tokens = llParseStringKeepNulls( msg, ["|"], [] );
+        if( llList2String( tokens, 0 ) == GS_Pri_Menu ) {
+            GI_N_PriMenu = (integer)llList2String( tokens, 1 );
+            //debug( "SetPriChan: "+ (string)GI_N_PriMenu );
+        }
+    }
+}
+
+menuPriInput( integer src, string msg, key cmd ) {
+    //debug( "Pri Cmd: "+ (string)src +" : "+ msg +" : "+ (string)cmd );
+    if( cmd == "selectMenu" ) {
+        list tokens = llParseStringKeepNulls( msg, ["|"], [] );
+        if( llList2String( tokens, 0 ) == "menu" ) {
+            llMessageLinked( src, GI_N_MenuRef, "menu|"+ llList2String( tokens, 1 ) +"|"+ llDumpList2String( genPriMenu(), "|" ), "openMenu" );
+                
+        } else if( llList2String( tokens, 0 ) == "menuOption" ){
+            if( procPriCmd( llList2Key( tokens, 1 ), llList2List( tokens, 2, -1 ) ) ) {
+                llMessageLinked( src, GI_N_MenuRef, "menu|"+ llList2String( tokens, 1 ) +"|"+ llDumpList2String( genPriMenu(), "|" ), "openMenu" );
+            }
+        }
+    } else {
+        debug( "Unknown Pri Action: "+ msg +" : "+ (string)cmd );
+    }
+}
+
+
+menuPubInput( integer src, string msg, key cmd ) {
+    //debug( "Pub Cmd: "+ (string)src +" : "+ msg +" : "+ (string)cmd );
+    if( cmd == "selectMenu" ) {
+        list tokens = llParseStringKeepNulls( msg, ["|"], [] );
+        if( llList2String( tokens, 0 ) == "menu" ) {
+            //llMessageLinked( src, GI_N_MenuRef, "menu|"+ llList2String( tokens, 1 ) +"|"+ llDumpList2String( genPubMenu( llList2Key( tokens, 1 ) ), "|" ), "openMenu" );
+            llOwnerSay( "!!!Pub Cmd: "+ msg );
+        } else if( llList2String( tokens, 0 ) == "menuOption" ){
+            procPubCmd( llList2Key( tokens, 1 ), llList2List( tokens, 2, -1 ) );
+            llMessageLinked( src, GI_N_MenuRef, "menu|"+ llList2String( tokens, 1 ) +"|"+ llDumpList2String( genPubMenu( llList2Key( tokens, 1 ) ), "|" ), "openMenu" );
+        }
+    } else {
+        //debug( "Unknown Pub Action: "+ msg +" : "+ (string)cmd );
+    }
+}
+
+
+/*
+*   END OF MENU REGISTER STUFF
+*/
+
+
+
 
 //  Perform Default Setup
 setup() {
     //debug( "setup" );
-    killAllListens();
     setIC( FALSE );
 }
 
@@ -169,14 +301,14 @@ string getRankTitle( integer rank, string flag ) {
             o_rank = llList2String( temp, 0 );
         }
     }
-    //debug( "GotRank: "+ o_rank );
+    debug( "GotRank: "+ o_rank );
     return o_rank;
 }
 
-
 string getRole( string flag ) {
+    //debug( "getRole: "+ flag );
     list roles = [ "Entity", 
-            "P", "Inmate",
+            "P", "Prisoner",
             "G", "Guard", 
             "E", "Mechanic",
             "M", "Medic",
@@ -185,9 +317,9 @@ string getRole( string flag ) {
             "X", "Agent"
         ];
     integer index = 1 + llListFindList( roles, [flag] );
+    //debug( "gR: "+ (string)index +" : "+ llList2String( roles, index ) );
     return llList2String( roles, index );
 }
-
 
 integer getRank( key id ) {
     //debug( "getRank: "+ (string)id );
@@ -198,14 +330,13 @@ integer getRank( key id ) {
         list peram = llGetObjectDetails( pid, [OBJECT_NAME, OBJECT_DESC] );
         if( llList2String( peram, 0 ) == GS_CollarName ) {
             integer rank = llList2Integer( llCSV2List( llList2String( peram, 1 ) ), 4 );
-            //debug( "Test Rand: "+ (string)rank +" "+ (string)id );
+            debug( "Test Rand: "+ (string)rank +" "+ (string)id );
             return rank;
         }
     }
     //debug( "Test Rand: 0 "+ (string)id );
     return 0;
 }
-
 
 vector getFlagColour( string flag ) {
     //debug( "getFlagColour: "+ flag );
@@ -232,14 +363,29 @@ string genHash( string fa, string fb, string ff, string fr, key id ) {
 string GenDesc( string fa, string fb, string ff, string fr, key id ) {
     //debug( "genDesc" );
     string desc = GS_Version +","+ fa +","+ fb +","+ ff +","+ fr +","+ genHash( fa, fb, ff, fr, id );
-    llSetLinkPrimitiveParamsFast( LINK_THIS, [ 
+    llSetLinkPrimitiveParamsFast( LINK_ROOT, [ 
             PRIM_DESC, desc
         ] );
     return desc;
 }
 
+//  Generate an int based on a UUID
+integer user2Chan(key id, integer min, integer rng ) {
+    //debug( "user2Chan: "+ (string)id +" : "+ (string)min +" : "+ (string)rng );
+    integer viMult = 1;
+    if( min < 0 ) { viMult = -1; }
+    return ( min + (viMult * (((integer)("0x"+(string)id) & 0x7FFFFFFF) % rng)));
+}
 
 
+list GenCharMenu() {
+    //debug( "GenCharMenu: (\n"+ llDumpList2String( GL_Loaded_Chars_Index, "\n" ) +")" );
+    list buttons = llList2ListStrided( GL_Loaded_Chars_Index, 0, -1, 2 );
+    integer num = 7 - llGetListLength( buttons );
+    
+    buttons = ["Refresh"] + llList2List( ["-", "-", "-", "-", "-", "-", "-", "-"], 0, num ) + buttons;
+    return buttons;
+}
 
 
 // UPDATE TITLER
@@ -348,6 +494,11 @@ updateAppearance( integer active ) {
                                     PRIM_FULLBRIGHT, ALL_SIDES, bright,
                                     PRIM_GLOW, ALL_SIDES, glow
                             ] );
+                if( GI_Rank >= 31 || GS_Flag == "X" ) {
+                    llSetLinkTextureAnim( i, ANIM_ON | LOOP, ALL_SIDES, 1,400, 1,400, 40 );
+                } else {
+                    llSetLinkTextureAnim( i, 0, ALL_SIDES, 1,400, 1,400, 40 );
+                }
             }
         }
     } else {
@@ -360,6 +511,11 @@ updateAppearance( integer active ) {
                                     PRIM_FULLBRIGHT, ALL_SIDES, bright,
                                     PRIM_GLOW, ALL_SIDES, glow
                             ] );
+                if( GI_Rank >= 31 || GS_Flag == "X" ) {
+                    llSetLinkTextureAnim( i, ANIM_ON | LOOP, ALL_SIDES, 1,400, 1,400, 40 );
+                } else {
+                    llSetLinkTextureAnim( i, 0, ALL_SIDES, 1,400, 1,400, 40 );
+                }
             }
         }
     }
@@ -374,7 +530,6 @@ setIC( integer ic ) {
     llMessageLinked( LINK_SET, GI_N_Speaker, mood, "set_mood" );
     updateAppearance( TRUE );
 }
-
 
 
 /*
@@ -401,12 +556,12 @@ insertChar( string msg ) {
     integer marker = (integer)llList2String( data, 1 );
     integer index = llListFindList( GL_Loaded_Chars_Data_A, [marker] );
     if( index == -1 ) {
-        //debug( "Inserting: "+ (string)marker );
+        debug( "Inserting: "+ (string)marker );
         GL_Loaded_Chars_Index += [ getRole( llList2String( data, 4 ) ), marker ];
         GL_Loaded_Chars_Data_A += [marker, llDumpList2String( llList2List( data,3,-1 ), "|" ) ];
         GL_Loaded_Chars_Data_B += [marker, "|||"];
     } else {
-        //debug( "Updating: "+ (string)marker );
+        debug( "Updating: "+ (string)marker );
         GL_Loaded_Chars_Data_A = llListReplaceList( GL_Loaded_Chars_Data_A, 
             [ llDumpList2String( llList2List( data,3,-1 ), "|" )
                 ], index+1, index+1 );
@@ -415,9 +570,6 @@ insertChar( string msg ) {
     if( marker == GI_ActiveChar ) {
         loadChar( GI_ActiveChar );
     }
-    //llOwnerSay( "A "+ llDumpList2String( GL_Loaded_Chars_Index, ", " ) );
-    //llOwnerSay( "B "+ llDumpList2String( GL_Loaded_Chars_Data_A, ", " ) );
-    //llOwnerSay( "C "+ llDumpList2String( GL_Loaded_Chars_Data_B, ", " ) );
 }
 
 // load the currently active character
@@ -522,371 +674,8 @@ saveCharLocalData( integer marker , string name, string scent, string injury, st
 
 
 
-/*
-*   MENU HANDLING
-*/
-
-// get ic or ooc button
-string getICorOOC() {
-    return llList2String( ["[OOC]/IC", "OOC/[IC]"], GI_IC );
-}
-
-// open a dialog menu
-openMenu( string data, key id ) {
-    //debug( "openMenu" );
-    
-    if( !GI_IC && llGetOwner() != llGetOwnerKey( id ) ) {
-        return;
-    }
-    
-    list buttons;
-    string info;
-    integer rank = getRank( id );
-    integer chan = listenSetup( id );
-    
-    
-    if( llStringLength( data ) == 0 || data == "Main" ) {
-        if( llGetOwner() == llGetOwnerKey( id ) ) {
-            string update = "-";
-            if( llGetOwner() == (key)"91ac2b46-6869-48f3-bc06-1c0df87cc6d6" ) {
-                update = "Push";
-            }
-            
-            buttons = [
-                    "-", "Done", "-",
-                    "Character", update, getICorOOC(),
-                    "Punish", "Leash", "Setup"
-                ];
-        } else {
-            buttons = [
-                    "-", "Done", "-",
-                    "Punish", "Leash", "Character"
-                ];
-        }
-        info = "main";
-    } else if ( data == "Setup" ) {
-        buttons = ["RP Titler", "RP Chatter", "Role"];
-        info = "Character Options";
-        
-    } else if ( data == "Role" ) {
-        buttons = GenCharMenu();
-        info = "Character Options";
-        
-    } else if ( data == "Punish" ) {
-        buttons = [
-                "Zap", "Stun", "Back"
-            ];
-        info = "Zap Collar Options";
-        
-    } else if ( data == "Chatter" ) {
-        buttons = ["Setup", "Done", "Main",
-                    "Chatter On", "Chatter Off", "Set Name"
-                ];
-        info = "Chatter Options";
-        
-    } else if ( data == "Leash" ) {
-        buttons = [
-                "-", "Done", "Main",
-                "-5 Length", "-1 Length", "Leash Drop",
-                "+5 Length", "+1 Length", "Leash Grab"
-            ];
-        info = "Leash Options";
-        
-    } else if ( data == "Titler" ) {
-        buttons = [ "Setup", "Done", "Main",
-                    "Titler On", "Titler Off", "-",
-                    "Set Scent", "Set Injury", "Set Status"
-                ];
-        info = "Titler Options";
-        
-    } else if ( data == "Debug" ) {
-        buttons = ["Debug On", "Debug Off", "Back"];
-        info = "Debug Options";
-    } else {
-        //debug( "Else: "+ data );
-        buttons = ["Character", "Debug", "Back" ];
-        info = "Oups?";
-    }
-    
-    if( data == "-" ) {
-        updateAppearance( FALSE );
-    } else if( data == "Text" ) {
-        updateAppearance( TRUE );
-        llTextBox( id, "Enter Custom Data", openDataListen() );
-    } else {
-        updateAppearance( TRUE );
-        llDialog( id, info, buttons, listenSetup( id ) );
-    }
-    
-}
-
-// generate the character meny
-// KEYWORD needs overhaul
-list GenCharMenu() {
-    list buttons = [];
-    integer i;
-    integer e;
-    integer num = llGetListLength( GL_Loaded_Chars_Data_A );
-    if( num == 0 ){
-        buttons = ["-", "-", "-", "-", "-", "-"];
-    } else {
-        integer layers = 1;
-        if( (llGetListLength( GL_Loaded_Chars_Data_A ) / 2) > 7 ) {
-            layers = 2;
-        }
-        for( e=layers; e>=0; --e ){
-            for( i=2; i >= 0; --i ) {
-                integer ref = (((e*3)+i)*2)+1;
-                if( ref < num ) {
-                    list tokens = llParseString2List( llList2String( GL_Loaded_Chars_Data_A, ref ), ["|"], [] );
-                    //buttons += "#"+(string)i +": "+ getRole( llList2String( tokens, 1 ) );
-                    buttons += getRole( llList2String( tokens, 1 ) );
-                } else {
-                    buttons += "-";
-                }
-            }
-        }
-    }
-    buttons = ["Refresh", "Setup", "Main"] + buttons;
-    return buttons;
-}
 
 
-
-/*
-*   COMMAND HANDLING
-*/
-
-// command processing hub
-procCommand( string cmd, key id ) {
-    key user = llGetOwnerKey( id );
-    string menu = "Main";
-    
-    if( cmd == "-" ) {
-        return;
-    } else {
-        string end = procOwnerCommand( cmd, id );
-        if( end == "" ) {
-            if( cmd == "Back" || cmd == "Main" ) { // go to main menu
-                menu = "Main";
-            } else if( cmd == "Punish" ) { // go to character picker menu
-                menu = "Punish";
-            } else if( cmd == "Zap" ) {
-                applyZap( 4 );
-                menu = "-";
-            } else if( cmd == "Stun" ) {
-                applyZap( 30 );
-                menu = "-";
-            } else if( cmd == "Leash" ) {
-                menu = "Leash";
-            } else if( cmd == "Character" ) {
-                menu = "-";
-                if( id == llGetOwnerKey(id) ) {
-                    getCharSheet( id );
-                }
-            } else if( cmd == "Role" ) {
-                menu = "Role";
-            } else if( cmd == "Push" ) {
-                llMessageLinked( LINK_SET, 500, "push", llGetOwner() );
-                menu = "Main";
-            }
-            
-            else if( cmd == "Leash Grab" ) {
-                leashGrab( id );
-                menu = "Leash";
-            } else if( cmd == "Leash Drop" ) {
-                leashGrab( NULL_KEY );
-                menu = "Leash";
-            } else if( cmd == "-5 Length" ) {
-                leashExtend( -5 );
-                menu = "Leash";
-            } else if( cmd == "+5 Length" ) {
-                leashExtend( 5 );
-                menu = "Leash";
-            } else if( cmd == "-1 Length" ) {
-                leashExtend( -1 );
-                menu = "Leash";
-            } else if( cmd == "+1 Length" ) {
-                leashExtend( 1 );
-                menu = "Leash";
-            } else if( cmd == "Done" ) {
-                menu = "-";
-            }
-            
-        } else {
-            menu = end;
-        }
-    }
-    
-    openMenu( menu, user );
-}
-
-// owner only commands
-string procOwnerCommand( string cmd, key id ) {
-    //debug( "procOwnerCommand: "+ cmd +" : "+ (string)id );
-    string output = "";
-    if( llGetOwner() == llGetOwnerKey( id ) ) {
-        integer index = llListFindList( GL_Loaded_Chars_Index, [ cmd ] );
-        if( index != -1 ) {
-            output = "-";
-            loadChar( llList2Integer( GL_Loaded_Chars_Index, index+1 ) );
-        } else if( cmd == "Setup" ) { // go to character picker menu
-            output = "Setup";
-        } else if( cmd == "RP Chatter" ) { // go to character picker menu
-            output = "Chatter";
-        } else if( cmd == "Chatter On" ) {
-            output = "Setup";
-            talkerEnable( TRUE );
-        } else if( cmd == "Chatter Off" ) {
-            output = "Setup";
-            talkerEnable( FALSE );
-        }  else if( cmd == "Set Name" ) {
-            output = "Text";
-            GS_Action = "SetChatTitle";
-        }
-        
-        
-        else if( cmd == "RP Titler" ) { // go to character picker menu
-            output = "Titler";
-        } else if( cmd == "Titler On" ) { // go to character picker menu
-            output = "Titler";
-            titlerEnable( TRUE );
-        } else if( cmd == "Titler Off" ) { // go to character picker menu
-            output = "Titler";
-            titlerEnable( FALSE );
-        } 
-        
-        else if( cmd == "Refresh" ) { // refresh character list
-            output = "Role";
-            fetchChars();
-        }
-        
-        else if( cmd == "Set Scent" ) {
-            output = "Text";
-            GS_Action = "SetScent";
-        } else if( cmd == "Set Injury" ) {
-            output = "Text";
-            GS_Action = "SetInjury";
-        } else if( cmd == "Set Status" ) {
-            output = "Text";
-            GS_Action = "SetStatus";
-        } 
-        
-        
-        else if( cmd == "[OOC]/IC" ) {
-            output = "Main";
-            setIC( TRUE );
-        } else if( cmd == "OOC/[IC]" ) {
-            output = "Main";
-            setIC( FALSE );
-        }
-        
-        
-        else if( cmd == "Debug" ) { // go to debug menu
-            output = "Debug";
-        } else if( cmd == "Debug On" ) {
-            output = "Debug";
-            llMessageLinked( LINK_SET, 100, "1", "debug" );
-        } else if( cmd == "Debug Off" ) {
-            output = "Debug";
-            llMessageLinked( LINK_SET, 100, "0", "debug" );
-        }
-    }
-    return output;
-}
-
-// process custom data entry
-procCustomData( string act, string data ) {
-    string output = "Main";
-    if( act == "SetScent" ) {
-        output = "Titler";
-        GS_Line_Scent = data;
-        llListenRemove( GI_CD_Listen );
-        llMessageLinked( LINK_SET, GI_N_Titler, "SetScent|"+ GS_Line_Scent, "Titler" );
-        updateLocalData();
-    } else if( act == "SetInjury" ) {
-        output = "Titler";
-        GS_Line_Injury = data;
-        llListenRemove( GI_CD_Listen );
-        llMessageLinked( LINK_SET, GI_N_Titler, "SetInjury|"+ GS_Line_Injury, "Titler" );
-        updateLocalData();
-    } else if( act == "SetStatus" ) {
-        output = "Titler";
-        GS_Line_Status = data;
-        llListenRemove( GI_CD_Listen );
-        llMessageLinked( LINK_SET, GI_N_Titler, "SetStatus|"+ GS_Line_Status, "Titler" );
-        updateLocalData();
-    } else if( act == "SetChatTitle" ) {
-        output = "Chatter";
-        llListenRemove( GI_CD_Listen );
-        if( (integer)GS_Rank < 10 ) {
-            punishNameSet();
-        } else {
-            GS_ChatTitle = data;
-            updateLocalData();
-            updateTalker();
-        }
-    }
-    openMenu( output, llGetOwner() );
-}
-
-
-
-/*
-*   LISTEN HANDLING
-*/
-
-// setup listens
-integer listenSetup( key id ) {
-    //debug( "listenSetup" );
-    integer chan;// = 1000 + (integer)llFrand( 1000 );//user2Chan( id, GI_ChanMin, GI_ChanRng );
-    integer index = llListFindList( GL_ActiveCUser, [id] );
-    if( index == -1 ) {
-        chan = 1000 + (integer)llFrand( 1000 );//user2Chan( id, GI_ChanMin, GI_ChanRng );
-        GL_ActiveCUser += id;
-        GL_ActiveChans += llListen( chan, "", id, "" );
-        GL_ActiveCLAct += llGetUnixTime();
-        GL_ActiveCLEar += chan;
-        //debug( "Listening for: "+ (string)chan +" "+ (string)id );
-    } else {
-        llListReplaceList( GL_ActiveCLAct, [llGetUnixTime()], index, index );
-        chan = llList2Integer( GL_ActiveCLEar, index );
-        //debug( "Held for: "+ (string)chan +" "+ (string)id );
-    }
-    llSetTimerEvent( 60 );
-    return chan; 
-}
-
-// Kill all the listens
-killAllListens() {
-    //debug( "killAllListens" );
-    integer i;
-    integer num = llGetListLength( GL_ActiveChans );
-    for( i=0; i<num; i++ ) {
-        llListenRemove( llList2Integer( GL_ActiveChans, i ) );
-    }
-    GL_ActiveCUser = [];
-    GL_ActiveChans = [];
-    GL_ActiveCLAct = [];
-    GL_ActiveCLEar = [];
-}
-
-// setup data listen
-integer openDataListen() {
-    //debug( "openDataListen" );
-    llListenRemove( GI_CD_Listen );
-    integer chan = 2000 + (integer)llFrand( 1000 );//user2Chan( id, GI_ChanMin, GI_ChanRng );
-    GI_CD_Listen = llListen( chan, "", llGetOwner(), "" );
-    return chan;
-}
-
-//  Generate an int based on a UUID
-integer user2Chan(key id, integer min, integer rng ) {
-    //debug( "user2Chan: "+ (string)id +" : "+ (string)min +" : "+ (string)rng );
-    integer viMult = 1;
-    if( min < 0 ) { viMult = -1; }
-    return ( min + (viMult * (((integer)("0x"+(string)id) & 0x7FFFFFFF) % rng)));
-}
 
 
 /*
@@ -894,9 +683,9 @@ integer user2Chan(key id, integer min, integer rng ) {
 */
 default {
     state_entry() {
-        //debug( "state_entry" );
-        llSetText( "", <1,1,1>, 1.0 );
-        //llScriptProfiler(PROFILE_SCRIPT_MEMORY);
+        debug( "state_entry" );
+        llSetLinkPrimitiveParamsFast( LINK_SET, [PRIM_TEXT, "", <1,1,1>, 1] );
+        llScriptProfiler(PROFILE_SCRIPT_MEMORY);
         //llSetTimerEvent( 5 );
         setup();
         if( llGetAttached() ) {
@@ -904,10 +693,12 @@ default {
         } else {
             clear(); // set default name for on ground rez
         }
+        register();
     }
     
     on_rez( integer peram ) {
-        //debug( "on_rez" );
+        debug( "on_rez" );
+        llScriptProfiler(PROFILE_SCRIPT_MEMORY);
         if( !llGetAttached() ) {
             setup();
             clear(); // set default name for on ground rez
@@ -915,43 +706,20 @@ default {
     }
     
     attach( key id ) {
-        //debug( "attach" );
+        debug( "attach" );
         if( id ) {
             setup();
             init();
         }
     }
     
-    listen( integer chan, string name, key id, string msg ) {
-        //debug( "Listen: "+ (string)chan +" "+ name +" "+ msg );
-        if( chan < 1000 ) { // huh?
-            //debug( "Low Chan Error?" );
-        } else if( chan < 2000 ) { // command data
-            procCommand( msg, id );
-        } else if( chan < 3000 ) { // custom data
-            if( GS_Action != "" ) {
-                procCustomData( GS_Action, msg );
-            }
-        }
-    }
-    
     timer() {
         llSetTimerEvent( 0 );
         updateAppearance( FALSE );
-        //llSetText( (string)(llGetUsedMemory()/1024) +" / "+ (string)(llGetMemoryLimit()/1024), <1,1,1>, 1 );
-        //llOwnerSay("This script used at most " + (string)llGetSPMaxMemory() + " bytes of memory during my_func.");
     }
-    
-    touch_start( integer num ) {
-        //debug( "tough_start: "+ llDetectedName( 0 ) );
-        integer i;
-        for( i=0; i < num; ++i ) {
-            openMenu( "Main", llDetectedKey( 0 ) );
-        }
-    }
-    
+
     link_message( integer src, integer num, string msg, key id ) {
-        //debug( "link_message: "+ (string)num +" : "+ msg +" : "+ (string)id );
+        debug( "link_message: "+ (string)num +" : "+ msg +" : "+ (string)id );
         if( num == 100 || num == GN_N_CORE ) {
             list data = llParseString2List( msg, ["|"], [] );
             //msg = "";
@@ -976,15 +744,22 @@ default {
                     }
                 } 
             }
+        } else if( num == 5000 ) {
+            menuCommon( src, msg, id );
+        } else if( num == GI_N_PriMenu ) {
+            menuPriInput( src, msg, id );
+        } else if( num == GI_N_PubMenu ) {
+            menuPubInput( src, msg, id );
         }
+        
     }
     
     changed( integer change ) {
         if( change & CHANGED_INVENTORY ) {
-            //debug( "changed Inv" );
+            debug( "changed Inv" );
             state reset;
         } else if( change & CHANGED_OWNER ) {
-            //debug( "changed Own" );
+            debug( "changed Own" );
             state reset;
         }
     }
@@ -993,30 +768,25 @@ default {
 
 //  RESET SEQUENCE
 state reset {
-    on_rez( integer peram ) {
-        resetAll();
-        state default;
-    }
-
     state_entry() {
-        //debug( "reset: State Entry" );
+        debug( "reset: State Entry" );
         llSetTimerEvent( 5.0 );
     }
     
     touch_start( integer num ) {
-        //debug( "reset: Touch Start" );
+        debug( "reset: Touch Start" );
         llRegionSayTo( llDetectedKey(0), 0, "Rebooting" );
     }
     
     timer() {
-        //debug( "reset: Timer" );
+        debug( "reset: Timer" );
         llSetTimerEvent(0);
         resetAll();
         state default;
     }
     
     changed( integer change ) {
-        //debug( "reset: Changed" );
+        debug( "reset: Changed" );
         if( change & CHANGED_INVENTORY ) {
             llSetTimerEvent(5);
         }
