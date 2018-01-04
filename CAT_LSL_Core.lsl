@@ -415,9 +415,6 @@ insertChar( string msg ) {
     if( marker == GI_ActiveChar ) {
         loadChar( GI_ActiveChar );
     }
-    //llOwnerSay( "A "+ llDumpList2String( GL_Loaded_Chars_Index, ", " ) );
-    //llOwnerSay( "B "+ llDumpList2String( GL_Loaded_Chars_Data_A, ", " ) );
-    //llOwnerSay( "C "+ llDumpList2String( GL_Loaded_Chars_Data_B, ", " ) );
 }
 
 // load the currently active character
