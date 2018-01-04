@@ -1,0 +1,61 @@
+
+
+integer GI_Change;
+
+update( string text, integer col ) {
+    llMessageLinked( LINK_ROOT, 500+ col, text, NULL_KEY );
+}
+
+output( string msg ) {
+    llSetText( msg, <1,1,1>, 1.0 );
+}
+
+default {
+    
+    state_entry() {
+        GI_Change = TRUE;
+        update( "Working!", 2 );
+        llSetTimerEvent( 2 );
+    }
+    
+    link_message( integer src, integer num, string msg, key id ) {
+        if( num == 600 ) {
+            integer type = llGetInventoryType( msg );
+            if( type == INVENTORY_NOTECARD || type == INVENTORY_NONE ) {
+                if(  id == llGetInventoryKey( msg ) ) {
+                    // already have
+                    update( "  Doup  ", 2 );
+                    llMessageLinked( src, 702, msg, id );
+                } else {
+                    // update time
+                    update( "Update! ", 1 );
+                    llMessageLinked( src, 701, msg, id );
+                }
+            } else {
+                // fuck off!
+                update( "Fuck Off", 3 );
+                llMessageLinked( src, 705, msg, id );
+            }
+            llSetTimerEvent( 2 );
+        }
+    }
+    
+    
+    changed( integer change ) {
+        if( change & CHANGED_INVENTORY ) {
+            if( !GI_Change ) {
+                GI_Change = TRUE;
+                update( "Working!", 2 );
+            }
+            llSetTimerEvent( 5 );
+        }
+    }
+    
+    
+    timer() {
+        llSetTimerEvent( 0 );
+        update( "Data "+ (string)llGetInventoryNumber( INVENTORY_NOTECARD ), 1 );
+        GI_Change = FALSE;
+    }
+
+}
