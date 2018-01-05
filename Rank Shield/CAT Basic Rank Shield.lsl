@@ -1,5 +1,9 @@
-string GS_CollarName = "Tether Collar";
+/*
+    Cat Shield
+*/
 
+integer GI_Field_OneWay = TRUE;
+integer GI_Field_Rank = 10;
 
 integer GI_DoorOpen;
 
@@ -7,9 +11,11 @@ key GI_TrigerUser;
 
 integer GI_CState;
 
+
+
+string GS_CollarName = "Tether Collar";
 integer GI_Desk_Base = 100;
 integer GI_Desk_Rng = 100;
-
 
 
 key GK_Main = NULL_KEY;
@@ -188,11 +194,11 @@ default {
             vector loc = llDetectedPos( i );
             if( llVecDist( loc, pos ) <= 5 ) {
                 vector ang = ((loc-pos) / rot);
-                if( ang.x >= 0 ) {
+                if( GI_Field_OneWay && ang.x >= 0 ) {
                     GK_Main = id;
                     open( id );
                     return;
-                } else if( getRank( id ) >= 5 ) {
+                } else if( GI_Field_Rank > 0 && getRank( id ) >= GI_Field_Rank ) {
                     GK_Main = id;
                     open( id );
                     return;
