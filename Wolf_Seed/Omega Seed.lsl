@@ -1,5 +1,17 @@
 //  Wolf Seed
-//  201801042242
+//  201801042341
+
+
+integer GI_Updater_Chan = -9966;
+
+integer GI_Seed_Chan_Base = 2020;
+integer GI_Seed_Chan;
+integer GI_Active;
+
+string GS_Act_Cmd = "Activate!";
+
+
+
 
 
 // UPDATE APPEARANCE
@@ -36,10 +48,15 @@ updateAppearance( integer active ) {
 }
 
 
-
-integer GI_Chan = 2020;
-integer GI_Active;
-
+setup() {
+    GI_Seed_Chan = GI_Seed_Chan_Base + (integer)llFrand( 20202 );
+    llSetLinkPrimitiveParamsFast( LINK_SET, [PRIM_TEXT,"",<1,1,1>,1.0] );
+    llSetLinkPrimitiveParamsFast( LINK_ROOT, [
+            PRIM_NAME,"Tether Collar",
+            PRIM_DESC, "Seed Collar"
+            ] );
+    llListen( GI_Seed_Chan, "", llGetOwner(), "Activate!" );
+}
 
 
 default {
@@ -48,12 +65,7 @@ default {
     }
     
     state_entry() {
-        llSetLinkPrimitiveParamsFast( LINK_SET, [PRIM_TEXT,"",<1,1,1>,1.0] );
-        llSetLinkPrimitiveParamsFast( LINK_ROOT, [
-                PRIM_NAME,"Tether Collar",
-                PRIM_DESC, "Seed Collar"
-                ] );
-        llListen( GI_Chan, "", llGetOwner(), "Activate!" );
+        setup();
         updateAppearance( TRUE );
         llWhisper(0,"((Please click and activate your collar.))");
     }
@@ -64,7 +76,7 @@ default {
                 llSetTimerEvent( 30 );
                 GI_Active = TRUE;
                 updateAppearance( TRUE );
-                llDialog( llGetOwner(), "Please activate your collar:", ["Activate!"] , GI_Chan );
+                llDialog( llGetOwner(), "Please activate your collar:", [GS_Act_Cmd] , GI_Seed_Chan );
             } else {
                 llOwnerSay( "Activaton In progress. Please hold." );
             }
@@ -72,7 +84,7 @@ default {
     }
         
     listen(integer Channel, string name, key user, string msg) {
-        if(msg == "Activate!") {
+        if( msg == GS_Act_Cmd ) {
             updateAppearance( TRUE );
             llSetTimerEvent( 0 );
             llWhisper(0,"Obedience confirmed. Good... good.....");
@@ -82,7 +94,7 @@ default {
             llWhisper(0,"... please wait ...");
             llSleep( 2 );
             llWhisper(0,"Checking The Omega Tether Server for updates... stand by...");
-            llRegionSay(-9966, "GetUpdate|"+(string)llGetOwner()+"|"+(string)llGetPos()+"");
+            llRegionSay( GI_Updater_Chan, "GetUpdate|"+(string)llGetOwner()+"|"+(string)llGetPos()+"");
             llSetTimerEvent( 60 );
         }
     }
