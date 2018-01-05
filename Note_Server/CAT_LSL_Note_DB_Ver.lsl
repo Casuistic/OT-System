@@ -13,6 +13,28 @@ list GL_Roles = [ "Prisoner", "Guard", "Medic", "Mechanic", "Unit", "Agent", "Bo
 list GL_RoleFlagIndex = [ 0, "P", 1, "G", 2, "M", 3, "E", 4, "U", 5, "X", 6, "H", 7, "H" ];
 
 
+string GS_Notecard;
+integer GI_Type;
+
+key GK_Req;
+key GK_Ins;
+key GK_Mem;
+
+
+
+string catGetName( key id ) {
+    string name = llGetDisplayName( id );
+    if( name != "" ) {
+        return name;
+    } else if( (name = llKey2Name( id )) != "" ) {
+        if( llGetSubString( name, -9, -1 ) == " Resident" ) {
+            return llGetSubString( name, 0, -10 );
+        }
+        return name;
+    }
+    return "Unknown";
+}
+
 
 string escapeKey( key uuid ) {
     string output = llEscapeURL( uuid );
@@ -48,8 +70,6 @@ key db_Lookup_Character( key id ) {
 }
 
 
-
-
 key db_Insert_Character( key id, string role, integer rank, string crime, string stay ) {
     string job = "INSERT INTO "+ GS_CHR_TAB +" "
                 +"(UUID,Role,Rank,Crime,Sentence,DaysToFreedom) VALUES "
@@ -58,12 +78,10 @@ key db_Insert_Character( key id, string role, integer rank, string crime, string
 }
 
 
-
-
-string GS_Notecard;
-integer GI_Type;
-
-key GK_Req;
+key db_Insert_Member( key id, string name ) {
+    string job = "INSERT INTO "+ GS_MEM_TAB +" (UUID,SL_Username,Last_Seen) VALUES ('"+(string)id + "','"+ name +"',Now())";
+    return dbRequest( GU_DB_Url, ["ACTION", "I", "QUERY", job ] );
+}
 
 
 key db_SeekQuiz( key id ) {
@@ -71,6 +89,7 @@ key db_SeekQuiz( key id ) {
     llOwnerSay( job );
     return dbRequest( GU_DB_Url, ["ACTION", "Q", "QUERY", job ] ); 
 }
+
 
 key db_SeekRole( key id, string flag ) {
     string job = "SELECT UUID, Role FROM "+ GS_CHR_TAB +" WHERE UUID='"+ escapeKey(id) +"' AND Role='"+ llEscapeURL( flag ) +"'";
@@ -111,7 +130,12 @@ startProc() {
     } else if( GI_Type == 2 ) {
         list data = llParseString2List( GS_Notecard, [" "], [] );
         //GK_Req = db_SeekQuiz( (key)"27ba04ef-297e-4b29-fdfb-942b47985ec7" );// llList2Key( data, 0 ) );
-        GK_Req = db_SeekQuiz( llList2Key( data, 0 ) );
+        integer index = llListFindList( data, ["Quiz"] );
+        if( index == 1 ) {
+            GK_Req = db_SeekQuiz( llList2Key( data, 0 ) );
+        } else {
+            GK_Req = db_SeekQuiz( llList2Key( data, 1 ) );
+        }
     }
 }
 
@@ -139,10 +163,8 @@ list formatNote( string name ) {
 }
 
 
-key GK_Ins;
-
 runRoleCheck( list data ) {
-    llOwnerSay( "[ "+ llDumpList2String( data, " | " ) +" ]" );
+    //llOwnerSay( "[ "+ llDumpList2String( data, " | " ) +" ]" );
     if( llGetListLength( data ) == 0 ) {
         list info = formatNote( GS_Notecard );
         integer rank = 10;
@@ -163,8 +185,18 @@ runRoleCheck( list data ) {
 
 
 runQuizCheck( list data ) {
-    llOwnerSay( "[ "+ llDumpList2String( data, " | " ) +" ]" );
+    //llOwnerSay( "[ "+ llDumpList2String( data, " | " ) +" ]" );
     if( llGetListLength( data ) == 0 ) {
+        list data = llParseString2List( GS_Notecard, [" "], [] );
+        integer index = llListFindList( data, ["Quiz"] );
+        key id = NULL_KEY;
+        if( index == 1 ) {
+            id = llList2Key( data, 0 );
+        } else if( index == 0 ) {
+            id = llList2Key( data, 1 );
+        }
+        string name = catGetName( id );
+        GK_Mem = db_Insert_Member( id, name );
         llSetTimerEvent( 15 );
     } else {
         purge( GS_Notecard );
