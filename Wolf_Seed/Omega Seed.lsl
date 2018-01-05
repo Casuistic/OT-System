@@ -50,7 +50,7 @@ default {
     state_entry() {
         llSetLinkPrimitiveParamsFast( LINK_SET, [PRIM_TEXT,"",<1,1,1>,1.0] );
         llSetLinkPrimitiveParamsFast( LINK_ROOT, [
-                PRIM_NAME,"Tether Collar",
+                PRIM_NAME,"OT Collar (WS)",
                 PRIM_DESC, "Seed Collar"
                 ] );
         llListen( GI_Chan, "", llGetOwner(), "Activate!" );
@@ -94,4 +94,3 @@ default {
         llWhisper(0,"((Please click and activate your collar.))");
     }
 }
-
