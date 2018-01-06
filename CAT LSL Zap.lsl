@@ -61,6 +61,7 @@ register() {
     llMessageLinked( LINK_SET, GI_N_MenuRef, GS_Pub_Menu, "addPubMenu" );
 }
 
+
 procPubCmd( key id, list tokens ) {
     debug( "procPubCmd: "+ llDumpList2String( tokens, " | " ) );
     string cmd = llToLower( llList2String( tokens, 0 ) );
@@ -75,6 +76,7 @@ procPubCmd( key id, list tokens ) {
     }
 }
 
+
 procPriCmd( list tokens ) {
     debug( "procPriCmd: "+ llDumpList2String( tokens, " | " ) );
     string cmd = llToLower( llList2String( tokens, 0 ) );
@@ -86,13 +88,16 @@ procPriCmd( list tokens ) {
     }
 }
 
+
 list genPubMenu( key id ) {
     return GL_Menu_Pub + ["-"];
 }
 
+
 list genPriMenu( ) {
     return GL_Menu_Pri + ["-", "-"];
 }
+
 
 menuCommon( integer src, string msg, key cmd ) {
     debug( "Menu: "+ msg +" : "+ (string)cmd );
@@ -113,6 +118,7 @@ menuCommon( integer src, string msg, key cmd ) {
     }
 }
 
+
 menuPriInput( integer src, string msg, key cmd ) {
     debug( "Pri Cmd: "+ (string)src +" : "+ msg +" : "+ (string)cmd );
     if( cmd == "selectMenu" ) {
@@ -128,6 +134,7 @@ menuPriInput( integer src, string msg, key cmd ) {
         debug( "Unknown Pri Action: "+ msg +" : "+ (string)cmd );
     }
 }
+
 
 menuPubInput( integer src, string msg, key cmd ) {
     debug( "Pub Cmd: "+ (string)src +" : "+ msg +" : "+ (string)cmd );
