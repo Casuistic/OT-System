@@ -65,7 +65,16 @@ default {
     }
     
     state_entry() {
+<<<<<<< HEAD
         setup();
+=======
+        llSetLinkPrimitiveParamsFast( LINK_SET, [PRIM_TEXT,"",<1,1,1>,1.0] );
+        llSetLinkPrimitiveParamsFast( LINK_ROOT, [
+                PRIM_NAME,"OT Collar (WS)",
+                PRIM_DESC, "Seed Collar"
+                ] );
+        llListen( GI_Chan, "", llGetOwner(), "Activate!" );
+>>>>>>> 3a54e0cba7cc2baf01dda4990948efc890ef5af4
         updateAppearance( TRUE );
         llWhisper(0,"((Please click and activate your collar.))");
     }
@@ -106,4 +115,3 @@ default {
         llWhisper(0,"((Please click and activate your collar.))");
     }
 }
-
