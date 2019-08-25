@@ -7,6 +7,11 @@ string GS_CHR_TAB = "Character_Data";
 string GS_LOG_TAB = "Character_Event_Log";
 
 
+
+
+
+
+
 integer GI_N_Dialog = 8100;
 integer GI_N_Relay = 8200;
 integer GI_N_Speaker = 8300;
@@ -29,15 +34,61 @@ integer GI_Action_Count;
 list GL_Action_Queue;
 
 
+integer GI_ActiveChar = -1;
+list GL_Loaded_Chars_Index = []; // indexing list
+list GL_Loaded_Chars_Data_A = []; // DB char data
+list GL_Loaded_Chars_Data_B = []; // local only char data
 
 
 
-integer GI_Debug = FALSE;
+
+list GL_RoleCols = [ 
+    "G", <1,0,0>, <0.5,0,0>, // Guard
+    "E", <1,0.5,0>, <0.5,0.25,0>, // Mechanic
+    "M", <0,1,0.5>, <0,0.25,0.25>, // Medic
+    "P", <0.2,0.5,1>, <0.15,0.15,0.35>, // Inmate
+    "U", <1,0,1>, <0.25,0,0.25>, // Unit
+    "X", <1,1,1>, <0.25,0.25,0.25>, // Agent
+    "H", <1,1,0>, <0.5,0.5,0> // Bounty Hunter
+];
+
+list GL_Roles = [ 
+    "Entity", 
+    "P", "Prisoner",
+    "G", "Guard", 
+    "E", "Mechanic",
+    "M", "Medic",
+    "U", "Unit",
+    "H", "Hunter",
+    "X", "Agent"
+];
+
+list GL_Ranktitles = [
+    0, "Non-Entity",
+    1, "Visitor|P|Prisoner",
+    3, "Visitor|P|Trustee",
+    10, "Entity|G|Guard|E|Mechanic|M|Medic|U|Unit|H|Hunter|X|Agent",
+    11, "Sergeant|X|Agent",
+    15, "Staff Sergeant|X|Agent",
+    20, "2nd Lieutenant|X|Agent",
+    21, "Lieutenant",
+    22, "Captain|X|Agent",
+    23, "Major|X|Agent",
+    31, "Agent"
+];
+
+
+
+
+integer GI_Debug = TRUE;
 debug( string msg ) {
     if( GI_Debug ) {
         llOwnerSay( llGetScriptName() +": "+ msg );
     }
 }
+
+
+
 
 key dbRequest( string url, list l ) {
     integer i;
@@ -79,29 +130,29 @@ procData( string act, string msg ) {
         integer i;
         integer num = llGetListLength( data );
         for( i=0; i<num; i++ ) {
+            insertChar( llList2String( data, i ) );
             llMessageLinked( LINK_SET, GN_N_HData, act +"|"+ (string)(i+1) +"|"+ (string)num +"|"+ llList2String( data, i ), "Char_Data" );
-            //llOwnerSay( act +"|"+ (string)(i+1) +"|"+ (string)num +"|"+ llList2String( data, i ) );
         }
+        dumpChars();
     } else {
         debug( "procData: Act Unknown: ["+ act +"]" );
     }
 }
 
 
-procAction( string act ) {
+procHTTPAction( string act ) {
     debug( "procAction ["+ act +"]" );
     integer index = llListFindList( GL_Action_Queue, [act] );
     if( index == -1 ) {
         GL_Action_Queue += act;
-        
         if( GK_Req == NULL_KEY || GK_Req == "" ) {
-            procNextAction();
+            procNextHTTPAction();
         }
     }
 }
 
 
-procNextAction() {
+procNextHTTPAction() {
     debug( "procNextAction" );
     if( llGetListLength( GL_Action_Queue ) == 0 ) {
         llSetTimerEvent( 0 );
@@ -119,16 +170,107 @@ procNextAction() {
     }
 }
 
+
+
+
+
+dumpChars() {
+    integer i;
+    integer num = llGetListLength( GL_Loaded_Chars_Index );
+    for( i=0; i<num; i+=2 ) {
+        integer marker = llList2Integer( GL_Loaded_Chars_Index, i+1 );
+        integer indexA = llListFindList( GL_Loaded_Chars_Data_A, [marker] );
+        integer indexB = llListFindList( GL_Loaded_Chars_Data_B, [marker] );
+        if( indexA == -1 || indexB == -1 ) {
+            debug( "dumpChars: WTF?" );
+        }
+        llOwnerSay( 
+                "Dump: "+ llList2String( GL_Loaded_Chars_Index, i ) 
+                +" : "+ (string)marker
+                +" : "+ llList2String( GL_Loaded_Chars_Data_A, indexA+1 )
+                +" : "+ llList2String( GL_Loaded_Chars_Data_B, indexB+1 )
+                );
+    }
+}
+
+
+string convertIDNToNum( integer idn, integer rank ) {
+    string fid = (string)((403+idn) + (10000*rank) );
+    return llGetSubString( "000000", llStringLength(fid), 6 ) + fid;
+}
+
+
+string getRole( string flag ) {
+    integer index = 1 + llListFindList( GL_Roles, [flag] );
+    return llList2String( GL_Roles, index );
+}
+
+//   insert character into local data
+//   user role as refferance
+insertChar( string msg ) {
+    debug( "insertChar "+ msg );
+    // 1|P|1|Being%20a%20Stupid%20Fucking%20Cat|Eternity|Never
+    list data = llParseString2List( msg, ["|"], [] );
+    integer marker = (integer)llList2String( data, 0 );
+    integer index = llListFindList( GL_Loaded_Chars_Data_A, [marker] );
+    string fid = llList2String( data, 1 ) +"-"+ convertIDNToNum( marker, (integer)llList2String( data, 2 ) );
+    if( index == -1 ) {
+        debug( "Inserting: "+ (string)marker );
+        GL_Loaded_Chars_Index += [fid, marker];
+        GL_Loaded_Chars_Data_A += [marker, getRole( llList2String( data, 1 ) ) +"|"+ llList2String( data, 1 ) +"|"+ llDumpList2String( llList2List( data,2,-1 ), "|" ) ];
+        GL_Loaded_Chars_Data_B += [marker, "|||"];
+    } else {
+        debug( "Updating: "+ (string)marker );
+        GL_Loaded_Chars_Data_A = llListReplaceList( GL_Loaded_Chars_Data_A, 
+            [ 
+                    //llDumpList2String( llList2List( data,2,-1 ), "|" )
+                    getRole( llList2String( data, 1 ) ) 
+                    +"|"+ llList2String( data, 1 ) 
+                    +"|"+ llDumpList2String( llList2List( data,2,-1 ), "|" )
+                ], index+1, index+1 );
+    }
+    
+    if( marker == GI_ActiveChar ) {
+        //loadChar( GI_ActiveChar );
+    }
+}
+
+
+procDataLookup( string act ) {
+    integer index = llListFindList( GL_Loaded_Chars_Index, [act] );
+    string output = act;
+    if( index != -1 ) {
+        integer marker = llList2Integer( GL_Loaded_Chars_Index, index+1 );
+        index = llListFindList( GL_Loaded_Chars_Data_A, [marker] );
+        if( index != -1 ) {
+            output += "|"+ llList2String( GL_Loaded_Chars_Data_A, marker );
+        } else {
+            output += "|"+ llList2String( GL_Loaded_Chars_Data_A, 0 );
+        }
+        index = llListFindList( GL_Loaded_Chars_Data_B, [marker] );
+        if( index != -1 ) {
+            output += "|"+ llList2String( GL_Loaded_Chars_Data_B, marker );
+        } else {
+            output += "|"+ llList2String( GL_Loaded_Chars_Data_B, 0 );
+        }
+    }
+    llOwnerSay( "Lookup: "+ output );
+    //llMessageLinked( LINK_SET, GN_N_HData, act +"|"+ (string)(i+1) +"|"+ (string)num +"|"+ llList2String( data, i ), "Char_Data" );
+}
+
+
 // integer GI_Action_Count;
 // list GL_Action_Queue;
-
 default {
 
     link_message( integer src, integer num, string msg, key id ) {
         if( num == 100 || num == GN_N_DB ) {
             if( id == "http_act" ) {
                 debug( "LM: ["+ msg +"] ["+ (string)id +"]" );
-                procAction( msg );
+                procHTTPAction( msg );
+            } else if( id == "fetch_data" ) {
+                debug( "LM: ["+ msg +"] ["+ (string)id +"]" );
+                procDataLookup( msg );
             } else if( id == "debug" ) {
                 if( msg == "debug:Enable" ) {
                     GI_Debug = TRUE;
@@ -148,7 +290,7 @@ default {
             GK_Req = NULL_KEY;
             GS_Act = "";
             if ( status != 200 ) {
-                //llSay(0,"the internet exploded!! "+ (string)status );
+                llOwnerSay( "the internet exploded!! There has been a server error" );
                 debug( "http_response Err: ["+ body +"] ["+ (string)status +"]" );
                 llSetTimerEvent( 10 );
             } else {
@@ -157,7 +299,8 @@ default {
                 body = llStringTrim( body, STRING_TRIM );
                 string ack = llGetSubString( body, 0, 2 );
                 if( ack == "NAK" ) {
-                    // handle nak
+                    // Handle NAK
+                    llOwnerSay( "Something went wrong. NAK Error" );
                 } else {
                     procData( act, llGetSubString( body, 3, -1 ) );
                 }
@@ -168,7 +311,7 @@ default {
     
     timer() {
         if( GK_Req == NULL_KEY ) {
-            procNextAction();
+            procNextHTTPAction();
         } else if( GI_Action_Count <= 6 ){
             GI_Action_Count += 1;
         } else {

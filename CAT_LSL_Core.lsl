@@ -82,6 +82,17 @@ list GL_RoleCols = [
     "H", <1,1,0>, <0.5,0.5,0> // Bounty Hunter
 ];
 
+list GL_Roles = [ 
+    "Entity", 
+    "P", "Inmate",
+    "G", "Guard", 
+    "E", "Mechanic",
+    "M", "Medic",
+    "U", "Unit",
+    "H", "Hunter",
+    "X", "Agent"
+];
+
 list GL_Ranktitles = [
     0, "Non-Entity",
     1, "Visitor|P|Inmate",
@@ -175,17 +186,8 @@ string getRankTitle( integer rank, string flag ) {
 
 
 string getRole( string flag ) {
-    list roles = [ "Entity", 
-            "P", "Inmate",
-            "G", "Guard", 
-            "E", "Mechanic",
-            "M", "Medic",
-            "U", "Unit",
-            "H", "Hunter",
-            "X", "Agent"
-        ];
-    integer index = 1 + llListFindList( roles, [flag] );
-    return llList2String( roles, index );
+    integer index = 1 + llListFindList( GL_Roles, [flag] );
+    return llList2String( GL_Roles, index );
 }
 
 
@@ -971,7 +973,7 @@ default {
                         GI_HoldActive = FALSE;
                         updateAppearance( FALSE );
                     }
-                } 
+                }
             }
         }
     }
